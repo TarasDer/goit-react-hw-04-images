@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import { useEffect, useState } from 'react';
 import { ToastContainer } from 'react-toastify';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -9,80 +9,73 @@ import { Button } from './Button/Button';
 import { Loader } from './Loader/Loader';
 import css from './App.module.css';
 
-export class App extends Component {
-  state = {
-    gallery: [],
-    page: 1,
-    searchQuery: '',
-    isLoader: false,
-    showBtn: false,
-  };
+export function App() {
+  const [gallery, setGallery] = useState([]);
+  const [page, setPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isLoader, setIsLoader] = useState(false);
+  const [showBtn, setShowBtn] = useState(false);
 
-  handleFormSubmit = searchQuery => {
-    if (this.state.searchQuery === searchQuery) {
-      toast.info(`You are already watching "${searchQuery}"`);
+  const handleFormSubmit = query => {
+    if (searchQuery === query) {
+      toast.info(`You are already watching "${query}"`);
       return;
     }
-    this.setState({ searchQuery, gallery: [], page: 1 });
+    setSearchQuery(() => query);
+    setGallery(() => []);
+    setPage(() => 1);
   };
+  useEffect(() => {
+    if (searchQuery === '') return;
 
-  async componentDidUpdate(prevProps, prevState) {
-    const { page, searchQuery, gallery } = this.state;
-
-    if (prevState.searchQuery !== searchQuery || prevState.page !== page) {
+    async function fetch() {
       try {
-        this.setState({ isLoader: true });
+        setIsLoader(() => true);
         const { data } = await fetchPhoto(page, searchQuery);
+        setGallery(prevState => [...prevState, ...data.hits]);
 
         if (data.hits.length === 0) {
-          this.setState({ showBtn: false });
+          setShowBtn(() => false);
           toast.info('Nothing was found for your request');
           return;
         }
         if (data.total > data.hits.length && data.total - page * 12 >= 0) {
-          this.setState({ showBtn: true });
+          setShowBtn(() => true);
         }
-        this.setState({ gallery: [...gallery, ...data.hits] });
       } catch (error) {
         console.log(error);
       } finally {
-        this.setState({ isLoader: false });
+        setIsLoader(() => false);
       }
     }
-  }
+    fetch();
+  }, [searchQuery, page]);
 
-  handleClickButton = () => {
-    this.setState(prevState => {
-      return {
-        page: prevState.page + 1,
-        showBtn: false,
-      };
-    });
+  const handleClickButton = () => {
+    setPage(state => state + 1);
+    setShowBtn(() => false);
   };
 
-  render() {
-    const { gallery, isLoader, showBtn } = this.state;
-    return (
-      <div className={css.App}>
-        <Searchbar handleFormSubmit={this.handleFormSubmit} />
-        <ToastContainer
-          position="top-center"
-          autoClose={2000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="colored"
-        />
-        {gallery.length > 0 && <ImageGallery gallery={gallery} />}
+  return (
+    <div className={css.App}>
+      <Searchbar handleFormSubmit={handleFormSubmit} />
+      <ToastContainer
+        position="top-center"
+        autoClose={2000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
+      />
+      {gallery.length > 0 && <ImageGallery gallery={gallery} />}
 
-        {isLoader && <Loader />}
+      {isLoader && <Loader />}
 
-        {showBtn && <Button onClick={this.handleClickButton} />}
-      </div>
-    );
-  }
+      {showBtn && <Button onClick={handleClickButton} />}
+    </div>
+  );
 }
